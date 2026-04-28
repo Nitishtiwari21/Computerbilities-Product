@@ -1,119 +1,347 @@
-<script>
-const products = [
-  { name:"NinjaOne RMM", category:"RMM", url:"https://status.ninjaone.com", api:"https://status.ninjaone.com/api/v2/summary.json" },
-  { name:"Kaseya Products", category:"RMM", url:"https://status.kaseya.com", api:"https://status.kaseya.com/api/v2/summary.json" },
-  { name:"ConnectWise Products", category:"RMM", url:"https://status.connectwise.com", api:"https://status.connectwise.com/api/v2/summary.json" },
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Outage Dashboard</title>
 
-  { name:"Microsoft 365", category:"Cloud", url:"https://status.cloud.microsoft", api:null },
-  { name:"CloudRadial", category:"Cloud", url:"https://status.cloudradial.com", api:null },
-  { name:"Pax8", category:"Cloud", url:"https://status.pax8.com", api:"https://status.pax8.com/api/v2/summary.json" },
-
-  { name:"DNSFilter", category:"Security", url:"https://status.dnsfilter.com", api:"https://status.dnsfilter.com/api/v2/summary.json" },
-  { name:"Huntress", category:"Security", url:"https://status.huntress.io", api:null },
-  { name:"Blackpoint", category:"Security", url:"https://status.blackpointcyber.com", api:null },
-  { name:"ThreatLocker", category:"Security", url:"https://threatlockerstatus.com", api:"https://threatlockerstatus.com/api/v2/summary.json" },
-  { name:"Todyl / SGN", category:"Security", url:"https://status.todyl.com", api:null },
-
-  { name:"Cisco Meraki", category:"Network", url:"https://status.meraki.net", api:null }
-];
-
-let lastIssueState = false;
-let showOnlyIssues = false;
-
-function toggleFilter() {
-  showOnlyIssues = !showOnlyIssues;
-  loadStatus();
-}
-
-function getClass(ind) {
-  if(ind==="none") return "ok";
-  if(ind==="minor" || ind==="maintenance") return "warn";
-  if(ind==="major" || ind==="critical") return "bad";
-  return "manual";
-}
-
-function getEmoji(ind) {
-  if(ind==="none") return "🟢";
-  if(ind==="minor") return "🟡";
-  if(ind==="major" || ind==="critical") return "🔴";
-  return "⚪";
-}
-
-function playAlert(){
-  const audio = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
-  audio.play();
-}
-
-async function loadStatus(){
-  const table = document.getElementById("statusTable");
-  table.innerHTML = "";
-
-  let issues = 0;
-  let grouped = {};
-
-  for(const p of products){
-    let status="Manual Check", details="Open vendor page", css="manual", emoji="⚪";
-
-    if(p.api){
-      try{
-        let r=await fetch(p.api);
-        let d=await r.json();
-        let ind=d.status?.indicator || "unknown";
-
-        status=d.status?.description || "Unknown";
-        css=getClass(ind);
-        emoji=getEmoji(ind);
-
-        if(ind!=="none") issues++;
-
-        details=d.incidents?.length ? d.incidents[0].name : "No incidents";
-
-      }catch{}
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: #e5e7eb;
     }
 
-    if(showOnlyIssues && css==="ok") continue;
+    header {
+      padding: 20px;
+      background: #020617;
+      border-bottom: 1px solid #1e293b;
+    }
 
-    if(!grouped[p.category]) grouped[p.category]=[];
+    h1 {
+      margin: 0;
+      font-size: 26px;
+    }
 
-    grouped[p.category].push(`
+    .subtitle {
+      margin-top: 6px;
+      color: #94a3b8;
+      font-size: 14px;
+    }
+
+    .toolbar {
+      padding: 16px 20px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    button {
+      background: #2563eb;
+      color: white;
+      border: none;
+      padding: 10px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    button:hover {
+      background: #1d4ed8;
+    }
+
+    .banner {
+      margin: 16px 20px;
+      padding: 16px;
+      border-radius: 10px;
+      font-weight: bold;
+      font-size: 18px;
+    }
+
+    .healthy {
+      background: #064e3b;
+      color: #bbf7d0;
+      border: 1px solid #16a34a;
+    }
+
+    .critical {
+      background: #7f1d1d;
+      color: #fecaca;
+      border: 1px solid #dc2626;
+    }
+
+    table {
+      width: calc(100% - 40px);
+      margin: 20px;
+      border-collapse: collapse;
+      background: #020617;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    th, td {
+      padding: 12px;
+      border-bottom: 1px solid #1e293b;
+      text-align: left;
+      font-size: 14px;
+    }
+
+    th {
+      background: #111827;
+      color: #cbd5e1;
+    }
+
+    a {
+      color: #60a5fa;
+      text-decoration: none;
+      font-weight: bold;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .ok {
+      color: #22c55e;
+      font-weight: bold;
+    }
+
+    .warn {
+      color: #facc15;
+      font-weight: bold;
+    }
+
+    .bad {
+      color: #ef4444;
+      font-weight: bold;
+    }
+
+    .manual {
+      color: #cbd5e1;
+      font-weight: bold;
+    }
+
+    .error {
+      color: #fb7185;
+      font-weight: bold;
+    }
+
+    .category-row {
+      background: #020617;
+      font-weight: bold;
+      color: #f8fafc;
+    }
+
+    .footer {
+      padding: 12px 20px 24px;
+      color: #94a3b8;
+      font-size: 13px;
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>Outage Dashboard</h1>
+    <div class="subtitle">Vendor status monitoring for RMM, Cloud, Security, and Network tools</div>
+  </header>
+
+  <div id="globalBanner" class="banner healthy">
+    🟢 Loading status...
+  </div>
+
+  <div class="toolbar">
+    <button onclick="toggleFilter()">Toggle Issues Only</button>
+    <button onclick="loadStatus()">Refresh Now</button>
+    <span id="filterState">Showing all vendors</span>
+  </div>
+
+  <table>
+    <thead>
       <tr>
-        <td>${p.name}</td>
-        <td class="${css}">${emoji} ${status}</td>
-        <td>${details}</td>
-        <td>${new Date().toLocaleString()}</td>
-        <td><a href="${p.url}" target="_blank">Open</a></td>
+        <th>Product</th>
+        <th>Status</th>
+        <th>Details</th>
+        <th>Last Checked</th>
+        <th>Link</th>
       </tr>
-    `);
-  }
+    </thead>
+    <tbody id="statusTable"></tbody>
+  </table>
 
-  for(const cat in grouped){
-    table.innerHTML += `
-      <tr style="background:#020617;font-weight:bold;">
-        <td colspan="5">📂 ${cat}</td>
-      </tr>
-      ${grouped[cat].join("")}
-    `;
-  }
+  <div class="footer">
+    Auto-refreshes every 5 minutes. Vendors without public APIs are listed as manual checks.
+  </div>
 
-  const banner = document.getElementById("globalBanner");
+  <script>
+    const products = [
+      { name:"NinjaOne RMM", category:"RMM", url:"https://status.ninjaone.com", api:"https://status.ninjaone.com/api/v2/summary.json" },
+      { name:"Kaseya Products", category:"RMM", url:"https://status.kaseya.com", api:"https://status.kaseya.com/api/v2/summary.json" },
+      { name:"ConnectWise Products", category:"RMM", url:"https://status.connectwise.com", api:"https://status.connectwise.com/api/v2/summary.json" },
 
-  if(issues>0){
-    banner.className="banner critical";
-    banner.innerText="🔴 Issues Detected";
+      { name:"Microsoft 365", category:"Cloud", url:"https://status.cloud.microsoft", api:null },
+      { name:"CloudRadial", category:"Cloud", url:"https://status.cloudradial.com", api:null },
+      { name:"Pax8", category:"Cloud", url:"https://status.pax8.com", api:"https://status.pax8.com/api/v2/summary.json" },
 
-    if(!lastIssueState){
-      playAlert(); // 🔊 alert only when new issue appears
+      { name:"DNSFilter", category:"Security", url:"https://status.dnsfilter.com", api:"https://status.dnsfilter.com/api/v2/summary.json" },
+      { name:"Huntress", category:"Security", url:"https://status.huntress.io", api:null },
+      { name:"Blackpoint", category:"Security", url:"https://status.blackpointcyber.com", api:null },
+      { name:"ThreatLocker", category:"Security", url:"https://threatlockerstatus.com", api:"https://threatlockerstatus.com/api/v2/summary.json" },
+      { name:"Todyl / SGN", category:"Security", url:"https://status.todyl.com", api:null },
+
+      { name:"Cisco Meraki", category:"Network", url:"https://status.meraki.net", api:null }
+    ];
+
+    let lastIssueState = false;
+    let showOnlyIssues = false;
+
+    function toggleFilter() {
+      showOnlyIssues = !showOnlyIssues;
+
+      document.getElementById("filterState").innerText = showOnlyIssues
+        ? "Showing issues only"
+        : "Showing all vendors";
+
+      loadStatus();
     }
 
-    lastIssueState = true;
+    function getClass(indicator) {
+      if (indicator === "none") return "ok";
+      if (indicator === "minor" || indicator === "maintenance") return "warn";
+      if (indicator === "major" || indicator === "critical") return "bad";
+      return "manual";
+    }
 
-  } else {
-    banner.className="banner healthy";
-    banner.innerText="🟢 All Systems Operational";
-    lastIssueState = false;
-  }
-}
+    function getEmoji(indicator) {
+      if (indicator === "none") return "🟢";
+      if (indicator === "minor" || indicator === "maintenance") return "🟡";
+      if (indicator === "major" || indicator === "critical") return "🔴";
+      return "⚪";
+    }
 
-loadStatus();
-setInterval(loadStatus,300000);
-</script>
+    function playAlert() {
+      const audio = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
+      audio.play().catch(() => {
+        console.log("Audio alert blocked by browser until user interaction.");
+      });
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    async function loadStatus() {
+      const table = document.getElementById("statusTable");
+      table.innerHTML = "";
+
+      let issues = 0;
+      let grouped = {};
+      const checkedTime = new Date().toLocaleString();
+
+      for (const p of products) {
+        let status = "Manual Check";
+        let details = "Open vendor page";
+        let css = "manual";
+        let emoji = "⚪";
+        let hasIssue = false;
+
+        if (p.api) {
+          try {
+            const response = await fetch(p.api, { cache: "no-store" });
+
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}`);
+            }
+
+            const data = await response.json();
+            const indicator = data.status?.indicator || "unknown";
+
+            status = data.status?.description || "Unknown";
+            css = getClass(indicator);
+            emoji = getEmoji(indicator);
+
+            hasIssue = indicator !== "none";
+            if (hasIssue) issues++;
+
+            if (data.incidents && data.incidents.length > 0) {
+              details = data.incidents[0].name;
+            } else {
+              details = "No incidents";
+            }
+
+          } catch (error) {
+            status = "API Unavailable";
+            details = "Could not fetch status API";
+            css = "error";
+            emoji = "⚠️";
+            hasIssue = true;
+            issues++;
+          }
+        }
+
+        if (showOnlyIssues && !hasIssue) {
+          continue;
+        }
+
+        if (!grouped[p.category]) {
+          grouped[p.category] = [];
+        }
+
+        grouped[p.category].push(`
+          <tr>
+            <td>${escapeHtml(p.name)}</td>
+            <td class="${css}">${emoji} ${escapeHtml(status)}</td>
+            <td>${escapeHtml(details)}</td>
+            <td>${escapeHtml(checkedTime)}</td>
+            <td><a href="${p.url}" target="_blank" rel="noopener noreferrer">Open</a></td>
+          </tr>
+        `);
+      }
+
+      if (Object.keys(grouped).length === 0) {
+        table.innerHTML = `
+          <tr>
+            <td colspan="5">No matching vendors to display.</td>
+          </tr>
+        `;
+      } else {
+        for (const category in grouped) {
+          table.innerHTML += `
+            <tr class="category-row">
+              <td colspan="5">📂 ${escapeHtml(category)}</td>
+            </tr>
+            ${grouped[category].join("")}
+          `;
+        }
+      }
+
+      const banner = document.getElementById("globalBanner");
+
+      if (issues > 0) {
+        banner.className = "banner critical";
+        banner.innerText = `🔴 Issues Detected: ${issues}`;
+
+        if (!lastIssueState) {
+          playAlert();
+        }
+
+        lastIssueState = true;
+      } else {
+        banner.className = "banner healthy";
+        banner.innerText = "🟢 All Systems Operational";
+        lastIssueState = false;
+      }
+    }
+
+    loadStatus();
+    setInterval(loadStatus, 300000);
+  </script>
+</body>
+</html>
