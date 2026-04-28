@@ -1,22 +1,176 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Computerbilities NOC Status Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { margin:0; font-family:Arial, sans-serif; background:#020617; color:white; }
+    header { padding:22px; background:#0f172a; border-bottom:1px solid #1e293b; }
+    h1 { margin:0; font-size:28px; }
+    .sub { color:#94a3b8; margin-top:6px; }
+
+    .summary { display:grid; grid-template-columns:repeat(4,1fr); gap:15px; padding:20px; }
+    .card { background:#111827; border:1px solid #1f2937; border-radius:14px; padding:18px; }
+    .card h2 { margin:0; font-size:28px; }
+    .card span { color:#94a3b8; }
+
+    .banner { margin:0 20px 20px; padding:18px; border-radius:14px; font-size:22px; font-weight:bold; }
+    .healthy { background:#064e3b; color:#d1fae5; }
+    .warning { background:#713f12; color:#fef3c7; }
+    .critical { background:#7f1d1d; color:#fee2e2; }
+
+    table { width:calc(100% - 40px); margin:20px; border-collapse:collapse; background:#111827; border-radius:14px; overflow:hidden; }
+    th, td { padding:15px; border-bottom:1px solid #1f2937; text-align:left; }
+    th { background:#1e293b; color:#cbd5e1; }
+    tr:hover { background:#172033; }
+
+    a { color:#38bdf8; text-decoration:none; }
+    .ok { color:#22c55e; font-weight:bold; }
+    .warn { color:#facc15; font-weight:bold; }
+    .bad { color:#ef4444; font-weight:bold; }
+    .manual { color:#94a3b8; font-weight:bold; }
+
+    .footer { padding:20px; color:#94a3b8; font-size:13px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🖥️ Computerbilities NOC Status Dashboard</h1>
+  <div class="sub">Live vendor outage monitoring | Auto-refresh every 5 minutes</div>
+</header>
+
+<div class="summary">
+  <div class="card"><h2 id="totalCount">0</h2><span>Total Products</span></div>
+  <div class="card"><h2 id="okCount">0</h2><span>Operational</span></div>
+  <div class="card"><h2 id="issueCount">0</h2><span>Issues Detected</span></div>
+  <div class="card"><h2 id="manualCount">0</h2><span>Manual Checks</span></div>
+</div>
+
+<div id="globalBanner" class="banner healthy">Loading status...</div>
+
+<table>
+  <thead>
+    <tr>
+      <th>Product</th>
+      <th>Status</th>
+      <th>Details</th>
+      <th>Last Checked</th>
+      <th>Status Page</th>
+    </tr>
+  </thead>
+  <tbody id="statusTable"></tbody>
+</table>
+
+<div class="footer">
+  Last dashboard refresh: <span id="lastUpdated">Loading...</span>
+</div>
+
+<script>
 const products = [
-  {
-    name: "NinjaOne RMM",
-    url: "https://status.ninjaone.com",
-    api: "https://status.ninjaone.com/api/v2/summary.json"
-  },
-  {
-    name: "Kaseya Products",
-    url: "https://status.kaseya.com",
-    api: "https://status.kaseya.com/api/v2/summary.json"
-  },
-  {
-    name: "ConnectWise Products",
-    url: "https://status.connectwise.com",
-    api: "https://status.connectwise.com/api/v2/summary.json"
-  },
-  {
-    name: "Microsoft 365",
-    url: "https://status.cloud.microsoft",
-    api: null
-  }
+  { name: "NinjaOne", url: "https://status.ninjaone.com", api: "https://status.ninjaone.com/api/v2/summary.json" },
+  { name: "Kaseya Products", url: "https://status.kaseya.com", api: "https://status.kaseya.com/api/v2/summary.json" },
+  { name: "ConnectWise", url: "https://status.connectwise.com", api: "https://status.connectwise.com/api/v2/summary.json" },
+  { name: "Microsoft 365", url: "https://status.cloud.microsoft", api: null },
+
+  { name: "CloudRadial", url: "https://support.cloudradial.com/hc/en-us", api: null },
+  { name: "DNSFilter", url: "https://status.dnsfilter.com", api: "https://status.dnsfilter.com/api/v2/summary.json" },
+  { name: "Huntress", url: "https://status.huntress.io", api: null },
+  { name: "Cisco Meraki", url: "https://status.meraki.net", api: null },
+  { name: "Blackpoint", url: "https://blackpointcyber.com", api: null },
+  { name: "Pax8", url: "https://status.pax8.com", api: "https://status.pax8.com/api/v2/summary.json" },
+  { name: "ThreatLocker", url: "https://threatlockerstatus.com", api: "https://threatlockerstatus.com/api/v2/summary.json" },
+  { name: "Todyl / SGN", url: "https://status.todyl.com", api: null }
 ];
+
+function getClass(indicator) {
+  if (indicator === "none") return "ok";
+  if (indicator === "minor" || indicator === "maintenance") return "warn";
+  if (indicator === "major" || indicator === "critical") return "bad";
+  return "manual";
+}
+
+function getEmoji(indicator) {
+  if (indicator === "none") return "🟢";
+  if (indicator === "minor" || indicator === "maintenance") return "🟡";
+  if (indicator === "major" || indicator === "critical") return "🔴";
+  return "⚪";
+}
+
+async function loadStatus() {
+  const table = document.getElementById("statusTable");
+  table.innerHTML = "";
+
+  let ok = 0;
+  let issues = 0;
+  let manual = 0;
+
+  for (const product of products) {
+    let status = "Manual Check";
+    let details = "Open vendor status page";
+    let css = "manual";
+    let emoji = "⚪";
+
+    if (product.api) {
+      try {
+        const response = await fetch(product.api);
+        const data = await response.json();
+
+        const indicator = data.status?.indicator || "unknown";
+        status = data.status?.description || "Unknown";
+        css = getClass(indicator);
+        emoji = getEmoji(indicator);
+
+        if (indicator === "none") ok++;
+        else issues++;
+
+        if (data.incidents && data.incidents.length > 0) {
+          details = data.incidents[0].name;
+        } else {
+          details = "No active incidents";
+        }
+      } catch (error) {
+        status = "Unable to Fetch";
+        details = "Manual verification required";
+        css = "manual";
+        emoji = "⚪";
+        manual++;
+      }
+    } else {
+      manual++;
+    }
+
+    table.innerHTML += `
+      <tr>
+        <td>${product.name}</td>
+        <td class="${css}">${emoji} ${status}</td>
+        <td>${details}</td>
+        <td>${new Date().toLocaleString()}</td>
+        <td><a href="${product.url}" target="_blank">Open</a></td>
+      </tr>
+    `;
+  }
+
+  document.getElementById("totalCount").innerText = products.length;
+  document.getElementById("okCount").innerText = ok;
+  document.getElementById("issueCount").innerText = issues;
+  document.getElementById("manualCount").innerText = manual;
+  document.getElementById("lastUpdated").innerText = new Date().toLocaleString();
+
+  const banner = document.getElementById("globalBanner");
+
+  if (issues > 0) {
+    banner.className = "banner critical";
+    banner.innerText = "🔴 Attention Required: One or more vendor issues detected";
+  } else {
+    banner.className = "banner healthy";
+    banner.innerText = "🟢 All auto-monitored systems operational";
+  }
+}
+
+loadStatus();
+setInterval(loadStatus, 300000);
+</script>
+
+</body>
+</html>
