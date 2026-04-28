@@ -1,48 +1,6 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Computerbilities Product Status Dashboard</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <style>
-    body { font-family: Arial; background:#0f172a; color:white; padding:25px; }
-    h1 { margin-bottom:5px; }
-    .sub { color:#94a3b8; margin-bottom:20px; }
-    table { width:100%; border-collapse:collapse; background:#111827; border-radius:12px; overflow:hidden; }
-    th, td { padding:14px; text-align:left; border-bottom:1px solid #1f2937; }
-    th { background:#1e293b; }
-    a { color:#38bdf8; text-decoration:none; }
-    .ok { color:#22c55e; font-weight:bold; }
-    .warn { color:#facc15; font-weight:bold; }
-    .bad { color:#ef4444; font-weight:bold; }
-    .unknown { color:#94a3b8; font-weight:bold; }
-    .card { margin-bottom:20px; padding:15px; background:#111827; border-radius:12px; }
-  </style>
-</head>
-<body>
-
-<h1>📊 Computerbilities Product Status Dashboard</h1>
-<div class="sub">Auto-refreshes every 5 minutes from vendor status pages.</div>
-
-<div class="card">
-  Last updated: <span id="lastUpdated">Loading...</span>
-</div>
-
-<table>
-  <thead>
-    <tr>
-      <th>Product</th>
-      <th>Status</th>
-      <th>Details</th>
-      <th>Status Page</th>
-    </tr>
-  </thead>
-  <tbody id="statusTable"></tbody>
-</table>
-
-<script>
 const products = [
   {
-    name: "NinjaOne",
+    name: "NinjaOne RMM",
     url: "https://status.ninjaone.com",
     api: "https://status.ninjaone.com/api/v2/summary.json"
   },
@@ -52,17 +10,7 @@ const products = [
     api: "https://status.kaseya.com/api/v2/summary.json"
   },
   {
-    name: "Datto Backups",
-    url: "https://status.datto.com",
-    api: "https://status.datto.com/api/v2/summary.json"
-  },
-  {
-    name: "IT Glue",
-    url: "https://status.itglue.com",
-    api: "https://status.itglue.com/api/v2/summary.json"
-  },
-  {
-    name: "ConnectWise Manage",
+    name: "ConnectWise Products",
     url: "https://status.connectwise.com",
     api: "https://status.connectwise.com/api/v2/summary.json"
   },
@@ -70,80 +18,5 @@ const products = [
     name: "Microsoft 365",
     url: "https://status.cloud.microsoft",
     api: null
-  },
-  {
-    name: "Axcient",
-    url: "https://status.axcient.com",
-    api: "https://status.axcient.com/api/v2/summary.json"
   }
 ];
-
-function statusClass(indicator) {
-  if (indicator === "none") return "ok";
-  if (indicator === "minor" || indicator === "maintenance") return "warn";
-  if (indicator === "major" || indicator === "critical") return "bad";
-  return "unknown";
-}
-
-function statusEmoji(indicator) {
-  if (indicator === "none") return "🟢";
-  if (indicator === "minor" || indicator === "maintenance") return "🟡";
-  if (indicator === "major" || indicator === "critical") return "🔴";
-  return "⚪";
-}
-
-async function loadStatus() {
-  const table = document.getElementById("statusTable");
-  table.innerHTML = "";
-
-  for (const product of products) {
-    let status = "Manual Check";
-    let details = "Open vendor status page";
-    let css = "unknown";
-    let emoji = "⚪";
-
-    if (product.api) {
-      try {
-        const response = await fetch(product.api);
-        const data = await response.json();
-
-        const indicator = data.status?.indicator || "unknown";
-        const description = data.status?.description || "Unknown";
-
-        css = statusClass(indicator);
-        emoji = statusEmoji(indicator);
-        status = description;
-
-        if (data.incidents && data.incidents.length > 0) {
-          details = data.incidents[0].name;
-        } else {
-          details = "No active incidents";
-        }
-
-      } catch (error) {
-        status = "Unable to fetch";
-        details = "Check vendor status page";
-        css = "unknown";
-        emoji = "⚪";
-      }
-    }
-
-    table.innerHTML += `
-      <tr>
-        <td>${product.name}</td>
-        <td class="${css}">${emoji} ${status}</td>
-        <td>${details}</td>
-        <td><a href="${product.url}" target="_blank">Open</a></td>
-      </tr>
-    `;
-  }
-
-  document.getElementById("lastUpdated").innerText = new Date().toLocaleString();
-}
-
-loadStatus();
-setInterval(loadStatus, 300000);
-</script>
-
-</body>
-</html>
