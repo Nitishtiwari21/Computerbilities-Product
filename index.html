@@ -1,20 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>NOC Dashboard</title>
+  <style>
+    body { font-family: Arial; background:#020617; color:white; margin:0; }
+    header { padding:20px; background:#0f172a; }
+    .banner { margin:20px; padding:15px; border-radius:10px; }
+    .healthy { background:#064e3b; }
+    .critical { background:#7f1d1d; }
+    table { width:95%; margin:20px; border-collapse:collapse; }
+    th, td { padding:12px; border-bottom:1px solid #1f2937; }
+    th { background:#1e293b; }
+    .ok { color:#22c55e; }
+    .warn { color:#facc15; }
+    .bad { color:#ef4444; }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <h2>🖥️ NOC Dashboard</h2>
+</header>
+
+<div id="globalBanner" class="banner healthy">
+  Loading status...
+</div>
+
+<!-- ✅ BUTTON (correct place) -->
+<button onclick="toggleFilter()" style="margin-left:20px;padding:10px;background:#2563eb;color:white;border:none;border-radius:8px;">
+  Toggle: Show Only Issues
+</button>
+
+<table>
+<thead>
+<tr>
+<th>Product</th>
+<th>Status</th>
+<th>Details</th>
+<th>Link</th>
+</tr>
+</thead>
+
+<tbody id="statusTable"></tbody>
+</table>
+
 <script>
 const products = [
-  { name: "NinjaOne RMM", category: "RMM", url: "https://status.ninjaone.com", api: "https://status.ninjaone.com/api/v2/summary.json" },
-  { name: "Kaseya Products", category: "RMM", url: "https://status.kaseya.com", api: "https://status.kaseya.com/api/v2/summary.json" },
-  { name: "ConnectWise Products", category: "RMM", url: "https://status.connectwise.com", api: "https://status.connectwise.com/api/v2/summary.json" },
-
-  { name: "Microsoft 365", category: "Cloud", url: "https://status.cloud.microsoft", api: null },
-  { name: "CloudRadial", category: "Cloud", url: "https://status.cloudradial.com", api: null },
-  { name: "Pax8", category: "Cloud", url: "https://status.pax8.com", api: "https://status.pax8.com/api/v2/summary.json" },
-
-  { name: "DNSFilter", category: "Security", url: "https://status.dnsfilter.com", api: "https://status.dnsfilter.com/api/v2/summary.json" },
-  { name: "Huntress", category: "Security", url: "https://status.huntress.io", api: null },
-  { name: "Blackpoint", category: "Security", url: "https://status.blackpointcyber.com", api: null },
-  { name: "ThreatLocker", category: "Security", url: "https://threatlockerstatus.com", api: "https://threatlockerstatus.com/api/v2/summary.json" },
-  { name: "Todyl / SGN", category: "Security", url: "https://status.todyl.com", api: null },
-
-  { name: "Cisco Meraki", category: "Network", url: "https://status.meraki.net", api: null }
+  { name:"NinjaOne", url:"https://status.ninjaone.com", api:"https://status.ninjaone.com/api/v2/summary.json" },
+  { name:"Kaseya", url:"https://status.kaseya.com", api:"https://status.kaseya.com/api/v2/summary.json" },
+  { name:"ConnectWise", url:"https://status.connectwise.com", api:"https://status.connectwise.com/api/v2/summary.json" },
+  { name:"Microsoft 365", url:"https://status.cloud.microsoft", api:null }
 ];
 
 let showOnlyIssues = false;
@@ -24,96 +60,60 @@ function toggleFilter() {
   loadStatus();
 }
 
-function getClass(indicator) {
-  if (indicator === "none") return "ok";
-  if (indicator === "minor" || indicator === "maintenance") return "warn";
-  if (indicator === "major" || indicator === "critical") return "bad";
-  return "manual";
-}
-
-function getEmoji(indicator) {
-  if (indicator === "none") return "🟢";
-  if (indicator === "minor" || indicator === "maintenance") return "🟡";
-  if (indicator === "major" || indicator === "critical") return "🔴";
-  return "⚪";
+function getStatus(ind) {
+  if(ind==="none") return ["🟢","ok"];
+  if(ind==="minor") return ["🟡","warn"];
+  return ["🔴","bad"];
 }
 
 async function loadStatus() {
-  const table = document.getElementById("statusTable");
+  let table = document.getElementById("statusTable");
   table.innerHTML = "";
+  let issues = 0;
 
-  let ok = 0, issues = 0, manual = 0;
-  const grouped = {};
+  for (let p of products) {
+    let status="Manual", details="Check page", css="";
 
-  for (const product of products) {
-    let status = "Manual Check";
-    let details = "Open vendor page";
-    let css = "manual";
-    let emoji = "⚪";
+    if(p.api){
+      try{
+        let r=await fetch(p.api);
+        let d=await r.json();
+        let ind=d.status.indicator;
+        let s=getStatus(ind);
+        status=s[0]+" "+d.status.description;
+        css=s[1];
 
-    if (product.api) {
-      try {
-        const res = await fetch(product.api);
-        const data = await res.json();
+        if(ind!=="none") issues++;
 
-        const indicator = data.status?.indicator || "unknown";
-        status = data.status?.description || "Unknown";
-        css = getClass(indicator);
-        emoji = getEmoji(indicator);
-
-        if (indicator === "none") ok++;
-        else issues++;
-
-        details = data.incidents?.length ? data.incidents[0].name : "No incidents";
-
-      } catch {
-        manual++;
-      }
-    } else {
-      manual++;
+        details=d.incidents.length?d.incidents[0].name:"No incidents";
+      }catch{}
     }
 
-    if (showOnlyIssues && css === "ok") continue;
+    if(showOnlyIssues && css==="ok") continue;
 
-    if (!grouped[product.category]) grouped[product.category] = [];
-
-    grouped[product.category].push(`
-      <tr>
-        <td>${product.name}</td>
-        <td class="${css}">${emoji} ${status}</td>
-        <td>${details}</td>
-        <td>${new Date().toLocaleString()}</td>
-        <td><a href="${product.url}" target="_blank">Open</a></td>
-      </tr>
-    `);
-  }
-
-  for (const category in grouped) {
     table.innerHTML += `
-      <tr style="background:#020617;font-weight:bold;">
-        <td colspan="5">📂 ${category}</td>
-      </tr>
-      ${grouped[category].join("")}
-    `;
+    <tr>
+      <td>${p.name}</td>
+      <td class="${css}">${status}</td>
+      <td>${details}</td>
+      <td><a href="${p.url}" target="_blank">Open</a></td>
+    </tr>`;
   }
 
-  document.getElementById("totalCount").innerText = products.length;
-  document.getElementById("okCount").innerText = ok;
-  document.getElementById("issueCount").innerText = issues;
-  document.getElementById("manualCount").innerText = manual;
-  document.getElementById("lastUpdated").innerText = new Date().toLocaleString();
+  let banner=document.getElementById("globalBanner");
 
-  const banner = document.getElementById("globalBanner");
-
-  if (issues > 0) {
-    banner.className = "banner critical";
-    banner.innerText = "🔴 Issues Detected";
-  } else {
-    banner.className = "banner healthy";
-    banner.innerText = "🟢 All Systems Operational";
+  if(issues>0){
+    banner.className="banner critical";
+    banner.innerText="🔴 Issues Detected";
+  }else{
+    banner.className="banner healthy";
+    banner.innerText="🟢 All Systems Operational";
   }
 }
 
 loadStatus();
-setInterval(loadStatus, 300000);
+setInterval(loadStatus,300000);
 </script>
+
+</body>
+</html>
