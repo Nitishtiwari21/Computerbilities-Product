@@ -1,119 +1,36 @@
 <script>
 const products = [
-  { name:"NinjaOne RMM", category:"RMM", url:"https://status.ninjaone.com", api:"https://status.ninjaone.com/api/v2/summary.json" },
-  { name:"Kaseya Products", category:"RMM", url:"https://status.kaseya.com", api:"https://status.kaseya.com/api/v2/summary.json" },
-  { name:"ConnectWise Products", category:"RMM", url:"https://status.connectwise.com", api:"https://status.connectwise.com/api/v2/summary.json" },
-
-  { name:"Microsoft 365", category:"Cloud", url:"https://status.cloud.microsoft", api:null },
-  { name:"CloudRadial", category:"Cloud", url:"https://status.cloudradial.com", api:null },
-  { name:"Pax8", category:"Cloud", url:"https://status.pax8.com", api:"https://status.pax8.com/api/v2/summary.json" },
-
-  { name:"DNSFilter", category:"Security", url:"https://status.dnsfilter.com", api:"https://status.dnsfilter.com/api/v2/summary.json" },
-  { name:"Huntress", category:"Security", url:"https://status.huntress.io", api:null },
-  { name:"Blackpoint", category:"Security", url:"https://status.blackpointcyber.com", api:null },
-  { name:"ThreatLocker", category:"Security", url:"https://threatlockerstatus.com", api:"https://threatlockerstatus.com/api/v2/summary.json" },
-  { name:"Todyl / SGN", category:"Security", url:"https://status.todyl.com", api:null },
-
-  { name:"Cisco Meraki", category:"Network", url:"https://status.meraki.net", api:null }
+  { name:"NinjaOne", url:"https://status.ninjaone.com", api:"https://status.ninjaone.com/api/v2/summary.json" },
+  { name:"Kaseya", url:"https://status.kaseya.com", api:"https://status.kaseya.com/api/v2/summary.json" },
+  { name:"ConnectWise", url:"https://status.connectwise.com", api:"https://status.connectwise.com/api/v2/summary.json" },
+  { name:"Microsoft 365", url:"https://status.cloud.microsoft", api:null }
 ];
-
-let lastIssueState = false;
-let showOnlyIssues = false;
-
-function toggleFilter() {
-  showOnlyIssues = !showOnlyIssues;
-  loadStatus();
-}
-
-function getClass(ind) {
-  if(ind==="none") return "ok";
-  if(ind==="minor" || ind==="maintenance") return "warn";
-  if(ind==="major" || ind==="critical") return "bad";
-  return "manual";
-}
-
-function getEmoji(ind) {
-  if(ind==="none") return "🟢";
-  if(ind==="minor") return "🟡";
-  if(ind==="major" || ind==="critical") return "🔴";
-  return "⚪";
-}
-
-function playAlert(){
-  const audio = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
-  audio.play();
-}
 
 async function loadStatus(){
   const table = document.getElementById("statusTable");
   table.innerHTML = "";
 
-  let issues = 0;
-  let grouped = {};
-
   for(const p of products){
-    let status="Manual Check", details="Open vendor page", css="manual", emoji="⚪";
+    let status="Manual", details="Check page";
 
     if(p.api){
       try{
         let r=await fetch(p.api);
         let d=await r.json();
-        let ind=d.status?.indicator || "unknown";
-
-        status=d.status?.description || "Unknown";
-        css=getClass(ind);
-        emoji=getEmoji(ind);
-
-        if(ind!=="none") issues++;
-
-        details=d.incidents?.length ? d.incidents[0].name : "No incidents";
-
+        status=d.status.description;
+        details=d.incidents.length?d.incidents[0].name:"No incidents";
       }catch{}
     }
 
-    if(showOnlyIssues && css==="ok") continue;
-
-    if(!grouped[p.category]) grouped[p.category]=[];
-
-    grouped[p.category].push(`
-      <tr>
-        <td>${p.name}</td>
-        <td class="${css}">${emoji} ${status}</td>
-        <td>${details}</td>
-        <td>${new Date().toLocaleString()}</td>
-        <td><a href="${p.url}" target="_blank">Open</a></td>
-      </tr>
-    `);
-  }
-
-  for(const cat in grouped){
     table.innerHTML += `
-      <tr style="background:#020617;font-weight:bold;">
-        <td colspan="5">📂 ${cat}</td>
-      </tr>
-      ${grouped[cat].join("")}
-    `;
-  }
-
-  const banner = document.getElementById("globalBanner");
-
-  if(issues>0){
-    banner.className="banner critical";
-    banner.innerText="🔴 Issues Detected";
-
-    if(!lastIssueState){
-      playAlert(); // 🔊 alert only when new issue appears
-    }
-
-    lastIssueState = true;
-
-  } else {
-    banner.className="banner healthy";
-    banner.innerText="🟢 All Systems Operational";
-    lastIssueState = false;
+    <tr>
+      <td>${p.name}</td>
+      <td>${status}</td>
+      <td>${details}</td>
+      <td><a href="${p.url}" target="_blank">Open</a></td>
+    </tr>`;
   }
 }
 
 loadStatus();
-setInterval(loadStatus,300000);
 </script>
