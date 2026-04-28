@@ -1,347 +1,810 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Outage Dashboard</title>
 
   <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #020617;
+      --panel-2: #111827;
+      --border: #1e293b;
+      --text: #e5e7eb;
+      --muted: #94a3b8;
+      --blue: #2563eb;
+      --blue-hover: #1d4ed8;
+      --green: #22c55e;
+      --green-bg: #064e3b;
+      --yellow: #facc15;
+      --yellow-bg: #713f12;
+      --red: #ef4444;
+      --red-bg: #7f1d1d;
+      --gray-bg: #1e293b;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       margin: 0;
       font-family: Arial, sans-serif;
-      background: #0f172a;
-      color: #e5e7eb;
+      background: radial-gradient(circle at top, #1e293b 0, #0f172a 45%);
+      color: var(--text);
     }
 
-    header {
-      padding: 20px;
-      background: #020617;
-      border-bottom: 1px solid #1e293b;
+    .app {
+      max-width: 1250px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 18px;
     }
 
     h1 {
       margin: 0;
-      font-size: 26px;
+      font-size: 32px;
+      letter-spacing: -0.03em;
     }
 
     .subtitle {
       margin-top: 6px;
-      color: #94a3b8;
+      color: var(--muted);
       font-size: 14px;
     }
 
-    .toolbar {
-      padding: 16px 20px;
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-
-    button {
-      background: #2563eb;
-      color: white;
-      border: none;
-      padding: 10px 14px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-weight: bold;
-    }
-
-    button:hover {
-      background: #1d4ed8;
+    .timestamp {
+      color: var(--muted);
+      font-size: 13px;
+      text-align: right;
+      line-height: 1.5;
     }
 
     .banner {
-      margin: 16px 20px;
       padding: 16px;
-      border-radius: 10px;
-      font-weight: bold;
-      font-size: 18px;
+      border-radius: 14px;
+      font-weight: 700;
+      margin-bottom: 18px;
+      border: 1px solid var(--border);
     }
 
-    .healthy {
-      background: #064e3b;
+    .banner.healthy {
+      background: var(--green-bg);
       color: #bbf7d0;
-      border: 1px solid #16a34a;
+      border-color: #16a34a;
     }
 
-    .critical {
-      background: #7f1d1d;
+    .banner.warning {
+      background: var(--yellow-bg);
+      color: #fef3c7;
+      border-color: #ca8a04;
+    }
+
+    .banner.critical {
+      background: var(--red-bg);
       color: #fecaca;
-      border: 1px solid #dc2626;
+      border-color: var(--red);
     }
 
-    table {
-      width: calc(100% - 40px);
-      margin: 20px;
-      border-collapse: collapse;
-      background: #020617;
+    .banner.loading {
+      background: var(--gray-bg);
+      color: #dbeafe;
+      border-color: #334155;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .summary-card {
+      background: rgba(2, 6, 23, 0.85);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      min-height: 92px;
+    }
+
+    .summary-card span {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 10px;
+    }
+
+    .summary-card strong {
+      display: block;
+      font-size: 30px;
+      letter-spacing: -0.03em;
+    }
+
+    .toolbar {
+      display: grid;
+      grid-template-columns: 1.4fr 0.8fr 0.8fr auto auto;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    input,
+    select,
+    button {
       border-radius: 10px;
-      overflow: hidden;
-    }
-
-    th, td {
-      padding: 12px;
-      border-bottom: 1px solid #1e293b;
-      text-align: left;
+      border: 1px solid var(--border);
+      padding: 11px 12px;
       font-size: 14px;
     }
 
+    input,
+    select {
+      background: var(--panel);
+      color: var(--text);
+      outline: none;
+    }
+
+    input:focus,
+    select:focus {
+      border-color: #60a5fa;
+    }
+
+    button {
+      background: var(--blue);
+      color: white;
+      border: 0;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    button:hover {
+      background: var(--blue-hover);
+    }
+
+    button:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+    }
+
+    .table-wrap {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      background: var(--panel);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th,
+    td {
+      padding: 13px 14px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      font-size: 14px;
+      vertical-align: top;
+    }
+
     th {
-      background: #111827;
+      background: var(--panel-2);
       color: #cbd5e1;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .category-row td {
+      background: #020617;
+      color: #f8fafc;
+      font-weight: 700;
+      border-top: 1px solid var(--border);
+    }
+
+    .product-name {
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .product-category {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 9px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .status-badge.ok {
+      color: #bbf7d0;
+      background: rgba(34, 197, 94, 0.16);
+    }
+
+    .status-badge.warn {
+      color: #fef3c7;
+      background: rgba(250, 204, 21, 0.18);
+    }
+
+    .status-badge.bad {
+      color: #fecaca;
+      background: rgba(239, 68, 68, 0.18);
+    }
+
+    .status-badge.manual {
+      color: #d1d5db;
+      background: rgba(148, 163, 184, 0.16);
+    }
+
+    .status-badge.error {
+      color: #fecdd3;
+      background: rgba(244, 63, 94, 0.18);
+    }
+
+    .status-badge.checking {
+      color: #bfdbfe;
+      background: rgba(96, 165, 250, 0.18);
     }
 
     a {
       color: #60a5fa;
+      font-weight: 700;
       text-decoration: none;
-      font-weight: bold;
     }
 
     a:hover {
       text-decoration: underline;
     }
 
-    .ok {
-      color: #22c55e;
-      font-weight: bold;
-    }
-
-    .warn {
-      color: #facc15;
-      font-weight: bold;
-    }
-
-    .bad {
-      color: #ef4444;
-      font-weight: bold;
-    }
-
-    .manual {
-      color: #cbd5e1;
-      font-weight: bold;
-    }
-
-    .error {
-      color: #fb7185;
-      font-weight: bold;
-    }
-
-    .category-row {
-      background: #020617;
-      font-weight: bold;
-      color: #f8fafc;
-    }
-
-    .footer {
-      padding: 12px 20px 24px;
-      color: #94a3b8;
+    .debug {
+      color: var(--muted);
       font-size: 13px;
+      margin-top: 12px;
+      line-height: 1.5;
+    }
+
+    .empty-row {
+      color: var(--muted);
+      text-align: center;
+      padding: 26px;
+    }
+
+    @media (max-width: 850px) {
+      .topbar {
+        flex-direction: column;
+      }
+
+      .timestamp {
+        text-align: left;
+      }
+
+      .summary-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .toolbar {
+        grid-template-columns: 1fr;
+      }
+
+      .table-wrap {
+        overflow-x: auto;
+      }
+
+      table {
+        min-width: 850px;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .app {
+        padding: 16px;
+      }
+
+      h1 {
+        font-size: 26px;
+      }
+
+      .summary-grid {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
 
 <body>
-  <header>
-    <h1>Outage Dashboard</h1>
-    <div class="subtitle">Vendor status monitoring for RMM, Cloud, Security, and Network tools</div>
-  </header>
+  <main class="app">
+    <header class="topbar">
+      <div>
+        <h1>Outage Dashboard</h1>
+        <div class="subtitle">Vendor status monitoring for RMM, Cloud, Security, and Network tools</div>
+      </div>
 
-  <div id="globalBanner" class="banner healthy">
-    🟢 Loading status...
-  </div>
+      <div class="timestamp">
+        <div id="lastUpdated">Last updated: Not yet checked</div>
+        <div>Auto-refresh: every 5 minutes</div>
+      </div>
+    </header>
 
-  <div class="toolbar">
-    <button onclick="toggleFilter()">Toggle Issues Only</button>
-    <button onclick="loadStatus()">Refresh Now</button>
-    <span id="filterState">Showing all vendors</span>
-  </div>
+    <section id="globalBanner" class="banner loading">
+      Loading dashboard...
+    </section>
 
-  <table>
-    <thead>
-      <tr>
-        <th>Product</th>
-        <th>Status</th>
-        <th>Details</th>
-        <th>Last Checked</th>
-        <th>Link</th>
-      </tr>
-    </thead>
-    <tbody id="statusTable"></tbody>
-  </table>
+    <section class="summary-grid">
+      <div class="summary-card">
+        <span>Total Vendors</span>
+        <strong id="metricTotal">0</strong>
+      </div>
 
-  <div class="footer">
-    Auto-refreshes every 5 minutes. Vendors without public APIs are listed as manual checks.
-  </div>
+      <div class="summary-card">
+        <span>Healthy</span>
+        <strong id="metricHealthy">0</strong>
+      </div>
+
+      <div class="summary-card">
+        <span>Needs Attention</span>
+        <strong id="metricAttention">0</strong>
+      </div>
+
+      <div class="summary-card">
+        <span>Manual Checks</span>
+        <strong id="metricManual">0</strong>
+      </div>
+    </section>
+
+    <section class="toolbar">
+      <input id="searchBox" type="search" placeholder="Search vendor or category..." />
+
+      <select id="categoryFilter">
+        <option value="all">All categories</option>
+      </select>
+
+      <select id="statusFilter">
+        <option value="all">All statuses</option>
+        <option value="attention">Needs attention</option>
+        <option value="ok">Healthy only</option>
+        <option value="warning">Warnings only</option>
+        <option value="outage">Outages only</option>
+        <option value="manual">Manual checks</option>
+        <option value="api-error">API errors</option>
+      </select>
+
+      <button id="refreshBtn" type="button">Refresh Now</button>
+      <button id="soundBtn" type="button">Sound On</button>
+    </section>
+
+    <section class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>Status</th>
+            <th>Details</th>
+            <th>Last Checked</th>
+            <th>Vendor Page</th>
+          </tr>
+        </thead>
+
+        <tbody id="statusTable">
+          <tr>
+            <td colspan="5" class="empty-row">Starting dashboard...</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <div id="debug" class="debug">
+      Diagnostics: page loaded.
+    </div>
+  </main>
+
+  <noscript>
+    This dashboard requires JavaScript to be enabled.
+  </noscript>
 
   <script>
     const products = [
-      { name:"NinjaOne RMM", category:"RMM", url:"https://status.ninjaone.com", api:"https://status.ninjaone.com/api/v2/summary.json" },
-      { name:"Kaseya Products", category:"RMM", url:"https://status.kaseya.com", api:"https://status.kaseya.com/api/v2/summary.json" },
-      { name:"ConnectWise Products", category:"RMM", url:"https://status.connectwise.com", api:"https://status.connectwise.com/api/v2/summary.json" },
+      { name: "NinjaOne RMM", category: "RMM", url: "https://status.ninjaone.com", api: "https://status.ninjaone.com/api/v2/summary.json" },
+      { name: "Kaseya Products", category: "RMM", url: "https://status.kaseya.com", api: "https://status.kaseya.com/api/v2/summary.json" },
+      { name: "ConnectWise Products", category: "RMM", url: "https://status.connectwise.com", api: "https://status.connectwise.com/api/v2/summary.json" },
 
-      { name:"Microsoft 365", category:"Cloud", url:"https://status.cloud.microsoft", api:null },
-      { name:"CloudRadial", category:"Cloud", url:"https://status.cloudradial.com", api:null },
-      { name:"Pax8", category:"Cloud", url:"https://status.pax8.com", api:"https://status.pax8.com/api/v2/summary.json" },
+      { name: "Microsoft 365", category: "Cloud", url: "https://status.cloud.microsoft", api: null },
+      { name: "CloudRadial", category: "Cloud", url: "https://status.cloudradial.com", api: null },
+      { name: "Pax8", category: "Cloud", url: "https://status.pax8.com", api: "https://status.pax8.com/api/v2/summary.json" },
 
-      { name:"DNSFilter", category:"Security", url:"https://status.dnsfilter.com", api:"https://status.dnsfilter.com/api/v2/summary.json" },
-      { name:"Huntress", category:"Security", url:"https://status.huntress.io", api:null },
-      { name:"Blackpoint", category:"Security", url:"https://status.blackpointcyber.com", api:null },
-      { name:"ThreatLocker", category:"Security", url:"https://threatlockerstatus.com", api:"https://threatlockerstatus.com/api/v2/summary.json" },
-      { name:"Todyl / SGN", category:"Security", url:"https://status.todyl.com", api:null },
+      { name: "DNSFilter", category: "Security", url: "https://status.dnsfilter.com", api: "https://status.dnsfilter.com/api/v2/summary.json" },
+      { name: "Huntress", category: "Security", url: "https://status.huntress.io", api: null },
+      { name: "Blackpoint", category: "Security", url: "https://status.blackpointcyber.com", api: null },
+      { name: "ThreatLocker", category: "Security", url: "https://threatlockerstatus.com", api: "https://threatlockerstatus.com/api/v2/summary.json" },
+      { name: "Todyl / SGN", category: "Security", url: "https://status.todyl.com", api: null },
 
-      { name:"Cisco Meraki", category:"Network", url:"https://status.meraki.net", api:null }
+      { name: "Cisco Meraki", category: "Network", url: "https://status.meraki.net", api: null }
     ];
 
-    let lastIssueState = false;
-    let showOnlyIssues = false;
+    let rows = [];
+    let lastIssueSignature = "";
+    let soundEnabled = localStorage.getItem("outageDashboardSound") !== "off";
 
-    function toggleFilter() {
-      showOnlyIssues = !showOnlyIssues;
+    const els = {};
 
-      document.getElementById("filterState").innerText = showOnlyIssues
-        ? "Showing issues only"
-        : "Showing all vendors";
+    function escapeHtml(value) {
+      const map = {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#039;"
+      };
 
-      loadStatus();
+      return String(value ?? "").replace(/[&<>"']/g, char => map[char]);
     }
 
-    function getClass(indicator) {
+    function getStatusType(indicator) {
       if (indicator === "none") return "ok";
       if (indicator === "minor" || indicator === "maintenance") return "warn";
       if (indicator === "major" || indicator === "critical") return "bad";
       return "manual";
     }
 
-    function getEmoji(indicator) {
-      if (indicator === "none") return "🟢";
-      if (indicator === "minor" || indicator === "maintenance") return "🟡";
-      if (indicator === "major" || indicator === "critical") return "🔴";
+    function getEmoji(statusType) {
+      if (statusType === "ok") return "🟢";
+      if (statusType === "warn") return "🟡";
+      if (statusType === "bad") return "🔴";
+      if (statusType === "error") return "⚠️";
+      if (statusType === "checking") return "⏳";
       return "⚪";
     }
 
+    function fetchWithTimeout(url, timeoutMs = 9000) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+      return fetch(url, {
+        cache: "no-store",
+        signal: controller.signal
+      }).finally(() => clearTimeout(timer));
+    }
+
     function playAlert() {
+      if (!soundEnabled) return;
+
       const audio = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
+
       audio.play().catch(() => {
-        console.log("Audio alert blocked by browser until user interaction.");
+        console.log("Audio alert blocked until the user interacts with the page.");
       });
     }
 
-    function escapeHtml(value) {
-      return String(value)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
+    function buildLoadingRows() {
+      const checked = new Date().toLocaleString();
+
+      rows = products.map(product => {
+        if (!product.api) {
+          return {
+            ...product,
+            status: "Manual Check",
+            details: "Open vendor page",
+            checked,
+            statusType: "manual",
+            hasAttention: false,
+            searchText: `${product.name} ${product.category}`.toLowerCase()
+          };
+        }
+
+        return {
+          ...product,
+          status: "Checking...",
+          details: "Waiting for status API",
+          checked,
+          statusType: "checking",
+          hasAttention: false,
+          searchText: `${product.name} ${product.category}`.toLowerCase()
+        };
+      });
     }
 
-    async function loadStatus() {
-      const table = document.getElementById("statusTable");
-      table.innerHTML = "";
+    async function checkProduct(product) {
+      const checked = new Date().toLocaleString();
 
-      let issues = 0;
-      let grouped = {};
-      const checkedTime = new Date().toLocaleString();
-
-      for (const p of products) {
-        let status = "Manual Check";
-        let details = "Open vendor page";
-        let css = "manual";
-        let emoji = "⚪";
-        let hasIssue = false;
-
-        if (p.api) {
-          try {
-            const response = await fetch(p.api, { cache: "no-store" });
-
-            if (!response.ok) {
-              throw new Error(`HTTP ${response.status}`);
-            }
-
-            const data = await response.json();
-            const indicator = data.status?.indicator || "unknown";
-
-            status = data.status?.description || "Unknown";
-            css = getClass(indicator);
-            emoji = getEmoji(indicator);
-
-            hasIssue = indicator !== "none";
-            if (hasIssue) issues++;
-
-            if (data.incidents && data.incidents.length > 0) {
-              details = data.incidents[0].name;
-            } else {
-              details = "No incidents";
-            }
-
-          } catch (error) {
-            status = "API Unavailable";
-            details = "Could not fetch status API";
-            css = "error";
-            emoji = "⚠️";
-            hasIssue = true;
-            issues++;
-          }
-        }
-
-        if (showOnlyIssues && !hasIssue) {
-          continue;
-        }
-
-        if (!grouped[p.category]) {
-          grouped[p.category] = [];
-        }
-
-        grouped[p.category].push(`
-          <tr>
-            <td>${escapeHtml(p.name)}</td>
-            <td class="${css}">${emoji} ${escapeHtml(status)}</td>
-            <td>${escapeHtml(details)}</td>
-            <td>${escapeHtml(checkedTime)}</td>
-            <td><a href="${p.url}" target="_blank" rel="noopener noreferrer">Open</a></td>
-          </tr>
-        `);
+      if (!product.api) {
+        return {
+          ...product,
+          status: "Manual Check",
+          details: "Open vendor page",
+          checked,
+          statusType: "manual",
+          hasAttention: false,
+          searchText: `${product.name} ${product.category}`.toLowerCase()
+        };
       }
 
-      if (Object.keys(grouped).length === 0) {
-        table.innerHTML = `
+      try {
+        const response = await fetchWithTimeout(product.api);
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        const indicator = data.status?.indicator || "unknown";
+        const statusType = getStatusType(indicator);
+
+        let details = "No incidents";
+
+        if (data.incidents && data.incidents.length > 0) {
+          details = data.incidents[0].name;
+        } else if (data.scheduled_maintenances && data.scheduled_maintenances.length > 0) {
+          details = data.scheduled_maintenances[0].name;
+        }
+
+        return {
+          ...product,
+          status: data.status?.description || "Unknown",
+          details,
+          checked,
+          statusType,
+          hasAttention: statusType === "warn" || statusType === "bad",
+          searchText: `${product.name} ${product.category} ${data.status?.description || ""} ${details}`.toLowerCase()
+        };
+
+      } catch (error) {
+        return {
+          ...product,
+          status: "API Check Failed",
+          details: error.name === "AbortError" ? "Status API timed out" : "Could not fetch status API",
+          checked,
+          statusType: "error",
+          hasAttention: true,
+          searchText: `${product.name} ${product.category} api failed`.toLowerCase()
+        };
+      }
+    }
+
+    function initCategoryFilter() {
+      const categories = [...new Set(products.map(product => product.category))].sort();
+
+      for (const category of categories) {
+        const option = document.createElement("option");
+        option.value = category;
+        option.textContent = category;
+        els.categoryFilter.appendChild(option);
+      }
+    }
+
+    function getFilteredRows() {
+      const query = els.searchBox.value.trim().toLowerCase();
+      const selectedCategory = els.categoryFilter.value;
+      const selectedStatus = els.statusFilter.value;
+
+      return rows.filter(row => {
+        if (query && !row.searchText.includes(query)) {
+          return false;
+        }
+
+        if (selectedCategory !== "all" && row.category !== selectedCategory) {
+          return false;
+        }
+
+        if (selectedStatus === "attention" && !row.hasAttention) {
+          return false;
+        }
+
+        if (selectedStatus === "ok" && row.statusType !== "ok") {
+          return false;
+        }
+
+        if (selectedStatus === "warning" && row.statusType !== "warn") {
+          return false;
+        }
+
+        if (selectedStatus === "outage" && row.statusType !== "bad") {
+          return false;
+        }
+
+        if (selectedStatus === "manual" && row.statusType !== "manual") {
+          return false;
+        }
+
+        if (selectedStatus === "api-error" && row.statusType !== "error") {
+          return false;
+        }
+
+        return true;
+      });
+    }
+
+    function renderRows() {
+      const visibleRows = getFilteredRows();
+      const grouped = {};
+
+      if (visibleRows.length === 0) {
+        els.statusTable.innerHTML = `
           <tr>
-            <td colspan="5">No matching vendors to display.</td>
+            <td colspan="5" class="empty-row">No vendors match the current filters.</td>
           </tr>
         `;
-      } else {
-        for (const category in grouped) {
-          table.innerHTML += `
-            <tr class="category-row">
-              <td colspan="5">📂 ${escapeHtml(category)}</td>
+        return;
+      }
+
+      for (const row of visibleRows) {
+        if (!grouped[row.category]) {
+          grouped[row.category] = [];
+        }
+
+        grouped[row.category].push(row);
+      }
+
+      let html = "";
+
+      for (const category of Object.keys(grouped)) {
+        html += `
+          <tr class="category-row">
+            <td colspan="5">📂 ${escapeHtml(category)}</td>
+          </tr>
+        `;
+
+        for (const row of grouped[category]) {
+          const emoji = getEmoji(row.statusType);
+
+          html += `
+            <tr>
+              <td>
+                <div class="product-name">${escapeHtml(row.name)}</div>
+                <div class="product-category">${escapeHtml(row.category)}</div>
+              </td>
+
+              <td>
+                <span class="status-badge ${escapeHtml(row.statusType)}">
+                  ${emoji} ${escapeHtml(row.status)}
+                </span>
+              </td>
+
+              <td>${escapeHtml(row.details)}</td>
+              <td>${escapeHtml(row.checked)}</td>
+
+              <td>
+                <a href="${escapeHtml(row.url)}" target="_blank" rel="noopener noreferrer">
+                  Open
+                </a>
+              </td>
             </tr>
-            ${grouped[category].join("")}
           `;
         }
       }
 
-      const banner = document.getElementById("globalBanner");
+      els.statusTable.innerHTML = html;
+    }
 
-      if (issues > 0) {
-        banner.className = "banner critical";
-        banner.innerText = `🔴 Issues Detected: ${issues}`;
+    function updateMetrics() {
+      const total = rows.length;
+      const healthy = rows.filter(row => row.statusType === "ok").length;
+      const manual = rows.filter(row => row.statusType === "manual").length;
+      const attention = rows.filter(row => row.hasAttention).length;
 
-        if (!lastIssueState) {
-          playAlert();
-        }
+      els.metricTotal.textContent = total;
+      els.metricHealthy.textContent = healthy;
+      els.metricManual.textContent = manual;
+      els.metricAttention.textContent = attention;
+    }
 
-        lastIssueState = true;
+    function updateBanner() {
+      const badCount = rows.filter(row => row.statusType === "bad").length;
+      const warnCount = rows.filter(row => row.statusType === "warn").length;
+      const errorCount = rows.filter(row => row.statusType === "error").length;
+      const attentionCount = badCount + warnCount + errorCount;
+
+      const issueSignature = rows
+        .filter(row => row.hasAttention)
+        .map(row => `${row.name}:${row.status}:${row.details}`)
+        .sort()
+        .join("|");
+
+      if (badCount > 0) {
+        els.globalBanner.className = "banner critical";
+        els.globalBanner.textContent = `🔴 Major outage detected. ${attentionCount} vendor check(s) need attention.`;
+      } else if (warnCount > 0 || errorCount > 0) {
+        els.globalBanner.className = "banner warning";
+        els.globalBanner.textContent = `🟡 Attention needed. Warnings: ${warnCount}. API errors: ${errorCount}.`;
       } else {
-        banner.className = "banner healthy";
-        banner.innerText = "🟢 All Systems Operational";
-        lastIssueState = false;
+        els.globalBanner.className = "banner healthy";
+        els.globalBanner.textContent = "🟢 All monitored APIs are operational.";
+      }
+
+      if (issueSignature && issueSignature !== lastIssueSignature) {
+        playAlert();
+      }
+
+      lastIssueSignature = issueSignature;
+    }
+
+    function updateSoundButton() {
+      els.soundBtn.textContent = soundEnabled ? "Sound On" : "Sound Off";
+    }
+
+    async function loadStatus() {
+      els.refreshBtn.disabled = true;
+      els.refreshBtn.textContent = "Refreshing...";
+      els.debug.textContent = "Diagnostics: loading vendor checks...";
+
+      buildLoadingRows();
+      renderRows();
+      updateMetrics();
+
+      try {
+        const results = await Promise.all(products.map(checkProduct));
+        rows = results;
+
+        renderRows();
+        updateMetrics();
+        updateBanner();
+
+        const now = new Date().toLocaleString();
+        els.lastUpdated.textContent = `Last updated: ${now}`;
+        els.debug.textContent = `Diagnostics: loaded ${rows.length} vendors at ${now}.`;
+
+      } catch (error) {
+        els.globalBanner.className = "banner critical";
+        els.globalBanner.textContent = "🔴 Dashboard error. Check browser console.";
+        els.debug.textContent = `Diagnostics: dashboard error - ${error.message}`;
+      } finally {
+        els.refreshBtn.disabled = false;
+        els.refreshBtn.textContent = "Refresh Now";
       }
     }
 
-    loadStatus();
-    setInterval(loadStatus, 300000);
+    document.addEventListener("DOMContentLoaded", () => {
+      els.globalBanner = document.getElementById("globalBanner");
+      els.statusTable = document.getElementById("statusTable");
+      els.searchBox = document.getElementById("searchBox");
+      els.categoryFilter = document.getElementById("categoryFilter");
+      els.statusFilter = document.getElementById("statusFilter");
+      els.refreshBtn = document.getElementById("refreshBtn");
+      els.soundBtn = document.getElementById("soundBtn");
+      els.lastUpdated = document.getElementById("lastUpdated");
+      els.debug = document.getElementById("debug");
+
+      els.metricTotal = document.getElementById("metricTotal");
+      els.metricHealthy = document.getElementById("metricHealthy");
+      els.metricAttention = document.getElementById("metricAttention");
+      els.metricManual = document.getElementById("metricManual");
+
+      initCategoryFilter();
+      updateSoundButton();
+
+      els.searchBox.addEventListener("input", renderRows);
+      els.categoryFilter.addEventListener("change", renderRows);
+      els.statusFilter.addEventListener("change", renderRows);
+
+      els.refreshBtn.addEventListener("click", loadStatus);
+
+      els.soundBtn.addEventListener("click", () => {
+        soundEnabled = !soundEnabled;
+        localStorage.setItem("outageDashboardSound", soundEnabled ? "on" : "off");
+        updateSoundButton();
+      });
+
+      loadStatus();
+      setInterval(loadStatus, 300000);
+    });
   </script>
 </body>
 </html>
