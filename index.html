@@ -1,17 +1,119 @@
 <script>
 const products = [
-  { name: "NinjaOne RMM", url: "https://status.ninjaone.com", api: "https://status.ninjaone.com/api/v2/summary.json" },
-  { name: "Kaseya Products", url: "https://status.kaseya.com", api: "https://status.kaseya.com/api/v2/summary.json" },
-  { name: "ConnectWise Products", url: "https://status.connectwise.com", api: "https://status.connectwise.com/api/v2/summary.json" },
-  { name: "Microsoft 365", url: "https://status.cloud.microsoft", api: null },
+  { name: "NinjaOne RMM", category: "RMM", url: "https://status.ninjaone.com", api: "https://status.ninjaone.com/api/v2/summary.json" },
+  { name: "Kaseya Products", category: "RMM", url: "https://status.kaseya.com", api: "https://status.kaseya.com/api/v2/summary.json" },
+  { name: "ConnectWise Products", category: "RMM", url: "https://status.connectwise.com", api: "https://status.connectwise.com/api/v2/summary.json" },
 
-  { name: "CloudRadial", url: "https://status.cloudradial.com", api: null },
-  { name: "DNSFilter", url: "https://status.dnsfilter.com", api: "https://status.dnsfilter.com/api/v2/summary.json" },
-  { name: "Huntress", url: "https://status.huntress.io", api: null },
-  { name: "Cisco Meraki", url: "https://status.meraki.net", api: null },
-  { name: "Blackpoint", url: "https://status.blackpointcyber.com", api: null },
-  { name: "Pax8", url: "https://status.pax8.com", api: "https://status.pax8.com/api/v2/summary.json" },
-  { name: "ThreatLocker", url: "https://threatlockerstatus.com", api: "https://threatlockerstatus.com/api/v2/summary.json" },
-  { name: "Todyl / SGN", url: "https://status.todyl.com", api: null }
+  { name: "Microsoft 365", category: "Cloud", url: "https://status.cloud.microsoft", api: null },
+  { name: "CloudRadial", category: "Cloud", url: "https://status.cloudradial.com", api: null },
+  { name: "Pax8", category: "Cloud", url: "https://status.pax8.com", api: "https://status.pax8.com/api/v2/summary.json" },
+
+  { name: "DNSFilter", category: "Security", url: "https://status.dnsfilter.com", api: "https://status.dnsfilter.com/api/v2/summary.json" },
+  { name: "Huntress", category: "Security", url: "https://status.huntress.io", api: null },
+  { name: "Blackpoint", category: "Security", url: "https://status.blackpointcyber.com", api: null },
+  { name: "ThreatLocker", category: "Security", url: "https://threatlockerstatus.com", api: "https://threatlockerstatus.com/api/v2/summary.json" },
+  { name: "Todyl / SGN", category: "Security", url: "https://status.todyl.com", api: null },
+
+  { name: "Cisco Meraki", category: "Network", url: "https://status.meraki.net", api: null }
 ];
+
+let showOnlyIssues = false;
+
+function toggleFilter() {
+  showOnlyIssues = !showOnlyIssues;
+  loadStatus();
+}
+
+function getClass(indicator) {
+  if (indicator === "none") return "ok";
+  if (indicator === "minor" || indicator === "maintenance") return "warn";
+  if (indicator === "major" || indicator === "critical") return "bad";
+  return "manual";
+}
+
+function getEmoji(indicator) {
+  if (indicator === "none") return "🟢";
+  if (indicator === "minor" || indicator === "maintenance") return "🟡";
+  if (indicator === "major" || indicator === "critical") return "🔴";
+  return "⚪";
+}
+
+async function loadStatus() {
+  const table = document.getElementById("statusTable");
+  table.innerHTML = "";
+
+  let ok = 0, issues = 0, manual = 0;
+  const grouped = {};
+
+  for (const product of products) {
+    let status = "Manual Check";
+    let details = "Open vendor page";
+    let css = "manual";
+    let emoji = "⚪";
+
+    if (product.api) {
+      try {
+        const res = await fetch(product.api);
+        const data = await res.json();
+
+        const indicator = data.status?.indicator || "unknown";
+        status = data.status?.description || "Unknown";
+        css = getClass(indicator);
+        emoji = getEmoji(indicator);
+
+        if (indicator === "none") ok++;
+        else issues++;
+
+        details = data.incidents?.length ? data.incidents[0].name : "No incidents";
+
+      } catch {
+        manual++;
+      }
+    } else {
+      manual++;
+    }
+
+    if (showOnlyIssues && css === "ok") continue;
+
+    if (!grouped[product.category]) grouped[product.category] = [];
+
+    grouped[product.category].push(`
+      <tr>
+        <td>${product.name}</td>
+        <td class="${css}">${emoji} ${status}</td>
+        <td>${details}</td>
+        <td>${new Date().toLocaleString()}</td>
+        <td><a href="${product.url}" target="_blank">Open</a></td>
+      </tr>
+    `);
+  }
+
+  for (const category in grouped) {
+    table.innerHTML += `
+      <tr style="background:#020617;font-weight:bold;">
+        <td colspan="5">📂 ${category}</td>
+      </tr>
+      ${grouped[category].join("")}
+    `;
+  }
+
+  document.getElementById("totalCount").innerText = products.length;
+  document.getElementById("okCount").innerText = ok;
+  document.getElementById("issueCount").innerText = issues;
+  document.getElementById("manualCount").innerText = manual;
+  document.getElementById("lastUpdated").innerText = new Date().toLocaleString();
+
+  const banner = document.getElementById("globalBanner");
+
+  if (issues > 0) {
+    banner.className = "banner critical";
+    banner.innerText = "🔴 Issues Detected";
+  } else {
+    banner.className = "banner healthy";
+    banner.innerText = "🟢 All Systems Operational";
+  }
+}
+
+loadStatus();
+setInterval(loadStatus, 300000);
 </script>
